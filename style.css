@@ -68,17 +68,8 @@ body {
   font-weight: 700;
   letter-spacing: 1px;
   text-shadow: var(--glow-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
-.nav-logo {
-  height: 32px;
-  width: 32px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 6px rgba(57, 255, 20, 0.6));
-}
 
 .nav-links {
   list-style: none;
@@ -122,6 +113,20 @@ body {
 
 .section {
   margin-bottom: 3rem;
+}
+
+/* Hero logo above dashboard */
+.hero-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.hero-logo__img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(57, 255, 20, 0.35));
 }
 
 .section-title {
