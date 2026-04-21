@@ -108,11 +108,12 @@ body {
    ============================================= */
 
 .main-content {
-  margin-top: var(--nav-height);
-  padding: 2rem 1rem;
+  padding-top: calc(var(--nav-height) + 2rem);
+  padding-bottom: 3rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   max-width: 720px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto;
 }
 
 /* =============================================
