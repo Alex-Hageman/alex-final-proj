@@ -413,3 +413,10 @@ body {
 .mono {
   font-family: var(--font-mono);
 }
+
+.history-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}

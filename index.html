@@ -11,9 +11,7 @@
 </head>
 <body>
   <nav class="nav-bar">
-    <div class="nav-brand">
-      MacroLog
-    </div>
+    <div class="nav-brand">MacroLog</div>
     <ul class="nav-links">
       <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
       <li><a href="#log" class="nav-link">Log Meal</a></li>
@@ -29,49 +27,49 @@
         <img src="images/logo.png" alt="MacroLog logo" class="hero-logo__img" />
       </div>
       <h1 class="section-title">Today's Log</h1>
-      <p class="section-date">April 21, 2026</p>
+      <p class="section-date" id="today-date"></p>
 
       <div class="macro-rings">
         <div class="macro-card macro-card--protein">
           <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="Protein progress">
             <circle class="ring__track" cx="50" cy="50" r="40" />
-            <circle class="ring__fill ring__fill--protein" cx="50" cy="50" r="40" stroke-dasharray="188 251" />
+            <circle id="ring-protein" class="ring__fill ring__fill--protein" cx="50" cy="50" r="40" stroke-dasharray="0 251" />
           </svg>
           <div class="macro-label">
             <span class="macro-letter">P</span>
-            <span class="macro-value">94<span class="macro-unit">g</span></span>
-            <span class="macro-target">/ 160g</span>
+            <span class="macro-value"><span id="val-protein">0</span><span class="macro-unit">g</span></span>
+            <span class="macro-target">/ <span id="target-protein">160</span>g</span>
           </div>
         </div>
 
         <div class="macro-card macro-card--carbs">
           <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="Carbs progress">
             <circle class="ring__track" cx="50" cy="50" r="40" />
-            <circle class="ring__fill ring__fill--carbs" cx="50" cy="50" r="40" stroke-dasharray="126 251" />
+            <circle id="ring-carbs" class="ring__fill ring__fill--carbs" cx="50" cy="50" r="40" stroke-dasharray="0 251" />
           </svg>
           <div class="macro-label">
             <span class="macro-letter">C</span>
-            <span class="macro-value">126<span class="macro-unit">g</span></span>
-            <span class="macro-target">/ 200g</span>
+            <span class="macro-value"><span id="val-carbs">0</span><span class="macro-unit">g</span></span>
+            <span class="macro-target">/ <span id="target-carbs">200</span>g</span>
           </div>
         </div>
 
         <div class="macro-card macro-card--fats">
           <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="Fats progress">
             <circle class="ring__track" cx="50" cy="50" r="40" />
-            <circle class="ring__fill ring__fill--fats" cx="50" cy="50" r="40" stroke-dasharray="94 251" />
+            <circle id="ring-fats" class="ring__fill ring__fill--fats" cx="50" cy="50" r="40" stroke-dasharray="0 251" />
           </svg>
           <div class="macro-label">
             <span class="macro-letter">F</span>
-            <span class="macro-value">47<span class="macro-unit">g</span></span>
-            <span class="macro-target">/ 65g</span>
+            <span class="macro-value"><span id="val-fats">0</span><span class="macro-unit">g</span></span>
+            <span class="macro-target">/ <span id="target-fats">65</span>g</span>
           </div>
         </div>
       </div>
 
       <div class="calorie-summary">
         <span class="calorie-label">Calories</span>
-        <span class="calorie-value">1,302</span>
+        <span class="calorie-value" id="val-calories">0</span>
         <span class="calorie-target">/ 2,000 kcal</span>
       </div>
     </section>
@@ -79,27 +77,27 @@
     <!-- Log Meal Section -->
     <section id="log" class="section">
       <h2 class="section-title">Log a Meal</h2>
-      <form class="entry-form" aria-label="Meal entry form">
+      <form class="entry-form" id="meal-form" aria-label="Meal entry form">
         <div class="form-group">
           <label for="meal-name" class="form-label">Meal Name</label>
           <input type="text" id="meal-name" name="meal-name" class="form-input" placeholder="e.g. Chicken & Rice" />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="protein" class="form-label">Protein (g)</label>
-            <input type="number" id="protein" name="protein" class="form-input form-input--mono" placeholder="0" min="0" step="0.1" />
+            <label for="input-protein" class="form-label">Protein (g)</label>
+            <input type="number" id="input-protein" name="protein" class="form-input form-input--mono" placeholder="0" min="0" step="0.1" />
           </div>
           <div class="form-group">
-            <label for="carbs" class="form-label">Carbs (g)</label>
-            <input type="number" id="carbs" name="carbs" class="form-input form-input--mono" placeholder="0" min="0" step="0.1" />
+            <label for="input-carbs" class="form-label">Carbs (g)</label>
+            <input type="number" id="input-carbs" name="carbs" class="form-input form-input--mono" placeholder="0" min="0" step="0.1" />
           </div>
           <div class="form-group">
-            <label for="fats" class="form-label">Fats (g)</label>
-            <input type="number" id="fats" name="fats" class="form-input form-input--mono" placeholder="0" min="0" step="0.1" />
+            <label for="input-fats" class="form-label">Fats (g)</label>
+            <input type="number" id="input-fats" name="fats" class="form-input form-input--mono" placeholder="0" min="0" step="0.1" />
           </div>
           <div class="form-group">
-            <label for="calories" class="form-label">Calories (kcal)</label>
-            <input type="number" id="calories" name="calories" class="form-input form-input--mono" placeholder="0" min="0" step="1" />
+            <label for="input-calories" class="form-label">Calories (kcal)</label>
+            <input type="number" id="input-calories" name="calories" class="form-input form-input--mono" placeholder="auto" min="0" step="1" />
           </div>
         </div>
         <button type="submit" class="btn-submit">Log Completion</button>
@@ -120,40 +118,120 @@
               <th scope="col">kcal</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>Chicken &amp; Rice</td>
-              <td class="mono">42.0</td>
-              <td class="mono">58.0</td>
-              <td class="mono">8.5</td>
-              <td class="mono">476</td>
-            </tr>
-            <tr>
-              <td>Greek Yogurt</td>
-              <td class="mono">17.0</td>
-              <td class="mono">6.0</td>
-              <td class="mono">0.5</td>
-              <td class="mono">98</td>
-            </tr>
-            <tr>
-              <td>Oats &amp; Banana</td>
-              <td class="mono">8.0</td>
-              <td class="mono">54.0</td>
-              <td class="mono">4.0</td>
-              <td class="mono">284</td>
-            </tr>
-            <tr>
-              <td>Protein Shake</td>
-              <td class="mono">27.0</td>
-              <td class="mono">8.0</td>
-              <td class="mono">3.0</td>
-              <td class="mono">167</td>
-            </tr>
+          <tbody id="history-body">
           </tbody>
         </table>
+        <p class="history-empty" id="history-empty">No meals logged yet. Fill in the form above to get started.</p>
       </div>
     </section>
 
   </main>
+
+  <script>
+    const CIRC = 251.33;
+    const TARGETS = { protein: 160, carbs: 200, fats: 65, calories: 2000 };
+
+    let totals = { protein: 0, carbs: 0, fats: 0, calories: 0 };
+
+    const rings = {
+      protein:  document.getElementById('ring-protein'),
+      carbs:    document.getElementById('ring-carbs'),
+      fats:     document.getElementById('ring-fats'),
+    };
+    const vals = {
+      protein:  document.getElementById('val-protein'),
+      carbs:    document.getElementById('val-carbs'),
+      fats:     document.getElementById('val-fats'),
+      calories: document.getElementById('val-calories'),
+    };
+
+    const inputs = {
+      protein:  document.getElementById('input-protein'),
+      carbs:    document.getElementById('input-carbs'),
+      fats:     document.getElementById('input-fats'),
+      calories: document.getElementById('input-calories'),
+    };
+
+    function setRing(macro, value, target) {
+      const capped = Math.min(value, target);
+      const filled = (capped / target) * CIRC;
+      rings[macro].setAttribute('stroke-dasharray', `${filled.toFixed(2)} ${CIRC}`);
+    }
+
+    function getFormValues() {
+      const p = parseFloat(inputs.protein.value)  || 0;
+      const c = parseFloat(inputs.carbs.value)    || 0;
+      const f = parseFloat(inputs.fats.value)     || 0;
+      const calInput = parseFloat(inputs.calories.value);
+      const cal = isNaN(calInput) ? Math.round(p * 4 + c * 4 + f * 9) : calInput;
+      return { protein: p, carbs: c, fats: f, calories: cal };
+    }
+
+    function updateDashboard(preview) {
+      const display = {
+        protein:  totals.protein  + preview.protein,
+        carbs:    totals.carbs    + preview.carbs,
+        fats:     totals.fats     + preview.fats,
+        calories: totals.calories + preview.calories,
+      };
+
+      ['protein', 'carbs', 'fats'].forEach(m => {
+        setRing(m, display[m], TARGETS[m]);
+        vals[m].textContent = display[m] % 1 === 0 ? display[m] : display[m].toFixed(1);
+      });
+
+      vals.calories.textContent = display.calories.toLocaleString();
+    }
+
+    function onFormInput() {
+      updateDashboard(getFormValues());
+
+      const p = parseFloat(inputs.protein.value)  || 0;
+      const c = parseFloat(inputs.carbs.value)    || 0;
+      const f = parseFloat(inputs.fats.value)     || 0;
+      if (!inputs.calories.value) {
+        inputs.calories.setAttribute('placeholder', Math.round(p * 4 + c * 4 + f * 9) || 'auto');
+      }
+    }
+
+    [inputs.protein, inputs.carbs, inputs.fats, inputs.calories].forEach(el => {
+      el.addEventListener('input', onFormInput);
+    });
+
+    document.getElementById('meal-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const v = getFormValues();
+
+      if (v.protein === 0 && v.carbs === 0 && v.fats === 0 && v.calories === 0) return;
+
+      totals.protein  += v.protein;
+      totals.carbs    += v.carbs;
+      totals.fats     += v.fats;
+      totals.calories += v.calories;
+
+      const name = document.getElementById('meal-name').value.trim() || 'Unnamed Meal';
+      const tbody = document.getElementById('history-body');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${name}</td>
+        <td class="mono">${v.protein % 1 === 0 ? v.protein : v.protein.toFixed(1)}</td>
+        <td class="mono">${v.carbs   % 1 === 0 ? v.carbs   : v.carbs.toFixed(1)}</td>
+        <td class="mono">${v.fats    % 1 === 0 ? v.fats    : v.fats.toFixed(1)}</td>
+        <td class="mono">${v.calories}</td>
+      `;
+      tbody.appendChild(row);
+
+      document.getElementById('history-empty').style.display = 'none';
+
+      this.reset();
+      inputs.calories.setAttribute('placeholder', 'auto');
+      updateDashboard({ protein: 0, carbs: 0, fats: 0, calories: 0 });
+    });
+
+    const dateEl = document.getElementById('today-date');
+    dateEl.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    updateDashboard({ protein: 0, carbs: 0, fats: 0, calories: 0 });
+  </script>
 </body>
 </html>
