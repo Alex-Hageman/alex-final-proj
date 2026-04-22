@@ -24,10 +24,12 @@
   --font-mono: 'Roboto Mono', monospace;
   --nav-height: 60px;
 
+  --color-water:   #00B4FF;
   --glow-primary:  0 0 12px rgba(57, 255, 20, 0.45);
   --glow-protein:  0 0 12px rgba(0, 245, 255, 0.45);
   --glow-carbs:    0 0 12px rgba(255, 230, 0, 0.45);
   --glow-fats:     0 0 12px rgba(255, 45, 120, 0.45);
+  --glow-water:    0 0 12px rgba(0, 180, 255, 0.5);
 }
 
 /* =============================================
@@ -274,6 +276,155 @@ body {
   font-family: var(--font-mono);
   font-size: 0.875rem;
   color: var(--color-text-muted);
+}
+
+/* =============================================
+   Water Tracker
+   ============================================= */
+
+.water-card {
+  background-color: var(--color-surface);
+  border: 1px solid rgba(0, 180, 255, 0.25);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.water-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.water-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-water);
+  text-shadow: var(--glow-water);
+  letter-spacing: 0.3px;
+}
+
+.water-display {
+  font-family: var(--font-mono);
+}
+
+.water-value {
+  font-size: 1.375rem;
+  font-weight: 500;
+  color: var(--color-water);
+  text-shadow: var(--glow-water);
+}
+
+.water-unit {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.water-bar-track {
+  position: relative;
+  height: 18px;
+  background-color: var(--color-border-bright);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.water-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0070cc, #00B4FF, #66d9ff);
+  border-radius: 100px;
+  box-shadow: 0 0 10px rgba(0, 180, 255, 0.55);
+  transition: width 0.35s ease;
+}
+
+.water-bar-pct {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text);
+  pointer-events: none;
+}
+
+.water-glasses {
+  text-align: center;
+}
+
+.water-glasses-text {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.water-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.water-btn {
+  background-color: transparent;
+  color: var(--color-water);
+  border: 1.5px solid rgba(0, 180, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+.water-btn:hover {
+  background-color: rgba(0, 180, 255, 0.1);
+  box-shadow: 0 0 10px rgba(0, 180, 255, 0.4);
+}
+
+.water-btn:active {
+  transform: scale(0.97);
+}
+
+.water-btn--custom {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-bright);
+}
+
+.water-btn--custom:hover {
+  color: var(--color-water);
+  border-color: rgba(0, 180, 255, 0.5);
+  background-color: rgba(0, 180, 255, 0.07);
+  box-shadow: none;
+}
+
+.water-btn--reset {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-bright);
+  margin-left: auto;
+}
+
+.water-btn--reset:hover {
+  color: var(--color-fats);
+  border-color: rgba(255, 45, 120, 0.4);
+  background-color: rgba(255, 45, 120, 0.07);
+  box-shadow: none;
+}
+
+.water-custom-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.water-custom-input {
+  max-width: 120px;
 }
 
 /* =============================================
