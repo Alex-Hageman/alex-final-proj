@@ -579,3 +579,32 @@ body {
   font-size: 0.875rem;
   color: var(--color-text-muted);
 }
+
+/* =============================================
+   App Footer
+   ============================================= */
+
+.app-footer {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.app-footer a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.app-footer a:hover { color: var(--color-primary); }
+
+.app-footer__sep { opacity: 0.4; }

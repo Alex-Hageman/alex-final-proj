@@ -319,3 +319,11 @@ body {
   color: var(--color-text);
   font-weight: 600;
 }
+
+.l-footer a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.l-footer a:hover { color: #39FF14; }

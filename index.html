@@ -3,11 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MacroLog</title>
+  <title>MacroLog — Dashboard</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="images/logo.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="MacroLog — Dashboard" />
+  <meta property="og:description" content="Track your daily macros, calories, and water intake with MacroLog's real-time neon dashboard." />
+  <meta property="og:image"       content="images/logo.png" />
+  <meta property="og:url"         content="https://macrolog.replit.app/index.html" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="MacroLog — Dashboard" />
+  <meta name="twitter:description" content="Track your daily macros, calories, and water intake with MacroLog's real-time neon dashboard." />
+  <meta name="twitter:image"       content="images/logo.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="cookie-consent.css" />
 </head>
 <body>
   <nav class="nav-bar">
@@ -157,6 +175,17 @@
     </section>
 
   </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <a href="privacy.html">Privacy Policy</a>
+    <span class="app-footer__sep">&bull;</span>
+    <a href="terms.html">Terms &amp; Conditions</a>
+    <span class="app-footer__sep">&bull;</span>
+    <a href="cookie-policy.html">Cookie Policy</a>
+    <span class="app-footer__sep">&bull;</span>
+    <span>&copy; 2026 MacroLog</span>
+  </footer>
 
   <script>
     const CIRC = 251.33;
@@ -314,5 +343,6 @@
       if (e.key === 'Enter') document.getElementById('water-custom-add').click();
     });
   </script>
+  <script src="cookie-consent.js"></script>
 </body>
 </html>
