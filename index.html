@@ -28,6 +28,15 @@
   <link rel="stylesheet" href="cookie-consent.css" />
   <link rel="stylesheet" href="auth.css" />
 
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-WN33QDGTGW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-WN33QDGTGW');
+  </script>
+
   <!-- Runtime config (served by server.py — injects Supabase credentials) -->
   <script src="/config.js"></script>
   <!-- Supabase JS client (CDN) -->
