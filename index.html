@@ -26,8 +26,52 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="cookie-consent.css" />
+  <link rel="stylesheet" href="auth.css" />
+
+  <!-- Runtime config (served by server.py — injects Supabase credentials) -->
+  <script src="/config.js"></script>
+  <!-- Supabase JS client (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+
+  <!-- ============================================================
+       Auth Modal
+  ============================================================ -->
+  <div id="auth-overlay" class="auth-overlay" hidden>
+    <div class="auth-card">
+      <img src="images/logo.png" alt="MacroLog logo" class="auth-logo" />
+      <h1 class="auth-title">MacroLog</h1>
+      <p class="auth-subtitle">Sign in to track your macros</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab auth-tab--active" id="tab-signin">Sign In</button>
+        <button class="auth-tab" id="tab-signup">Sign Up</button>
+      </div>
+
+      <p id="auth-error" class="auth-error" hidden></p>
+      <p id="auth-info"  class="auth-info"  hidden></p>
+
+      <form id="auth-form" class="auth-form" novalidate>
+        <label class="auth-label" for="auth-email">Email</label>
+        <input type="email" id="auth-email" class="auth-input" placeholder="you@example.com" autocomplete="email" required />
+
+        <label class="auth-label" for="auth-password">Password</label>
+        <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" autocomplete="current-password" required />
+
+        <button type="submit" class="auth-btn" id="auth-submit">Sign In</button>
+      </form>
+
+      <p class="auth-switch">
+        Don't have an account?
+        <button class="auth-switch-btn" id="auth-switch-btn">Sign Up</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Nav
+  ============================================================ -->
   <nav class="nav-bar">
     <div class="nav-brand">MacroLog</div>
     <ul class="nav-links">
@@ -36,6 +80,10 @@
       <li><a href="#log" class="nav-link">Log Meal</a></li>
       <li><a href="#history" class="nav-link">History</a></li>
     </ul>
+    <div class="nav-user" id="nav-user" hidden>
+      <span class="nav-email" id="nav-email"></span>
+      <button class="nav-signout" id="nav-signout">Sign Out</button>
+    </div>
   </nav>
 
   <main class="main-content">
@@ -149,7 +197,7 @@
             <input type="number" id="input-calories" name="calories" class="form-input form-input--mono" placeholder="auto" min="0" step="1" />
           </div>
         </div>
-        <button type="submit" class="btn-submit">Log Completion</button>
+        <button type="submit" class="btn-submit" id="meal-submit">Log Completion</button>
       </form>
     </section>
 
@@ -165,10 +213,10 @@
               <th scope="col">C (g)</th>
               <th scope="col">F (g)</th>
               <th scope="col">kcal</th>
+              <th scope="col" aria-label="Delete"></th>
             </tr>
           </thead>
-          <tbody id="history-body">
-          </tbody>
+          <tbody id="history-body"></tbody>
         </table>
         <p class="history-empty" id="history-empty">No meals logged yet. Fill in the form above to get started.</p>
       </div>
@@ -188,160 +236,461 @@
   </footer>
 
   <script>
-    const CIRC = 251.33;
-    const TARGETS = { protein: 160, carbs: 200, fats: 65, calories: 2000 };
+  // ================================================================
+  // MacroLog — Supabase-integrated tracker
+  // ================================================================
 
-    let totals = { protein: 0, carbs: 0, fats: 0, calories: 0 };
+  const CIRC        = 251.33;
+  const WATER_TARGET = 2500;
+  const GLASS_ML    = 250;
+  const TARGETS     = { protein: 160, carbs: 200, fats: 65, calories: 2000 };
 
-    const rings = {
-      protein:  document.getElementById('ring-protein'),
-      carbs:    document.getElementById('ring-carbs'),
-      fats:     document.getElementById('ring-fats'),
+  let sb   = null;   // supabase client
+  let user = null;
+
+  let totals  = { protein: 0, carbs: 0, fats: 0, calories: 0 };
+  let waterMl = 0;
+  let authMode = 'signin';
+
+  // ── DOM refs ────────────────────────────────────────────────────
+  const rings = {
+    protein: document.getElementById('ring-protein'),
+    carbs:   document.getElementById('ring-carbs'),
+    fats:    document.getElementById('ring-fats'),
+  };
+  const vals = {
+    protein:  document.getElementById('val-protein'),
+    carbs:    document.getElementById('val-carbs'),
+    fats:     document.getElementById('val-fats'),
+    calories: document.getElementById('val-calories'),
+  };
+  const inputs = {
+    protein:  document.getElementById('input-protein'),
+    carbs:    document.getElementById('input-carbs'),
+    fats:     document.getElementById('input-fats'),
+    calories: document.getElementById('input-calories'),
+  };
+
+  // ── Date helpers ─────────────────────────────────────────────────
+  function todayRange() {
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return { start: start.toISOString(), end: end.toISOString() };
+  }
+
+  // ── Ring helpers ─────────────────────────────────────────────────
+  function setRing(macro, value, target) {
+    const filled = (Math.min(value, target) / target) * CIRC;
+    rings[macro].setAttribute('stroke-dasharray', `${filled.toFixed(2)} ${CIRC}`);
+  }
+
+  function fmt(n) {
+    return n % 1 === 0 ? String(n) : n.toFixed(1);
+  }
+
+  // ── Dashboard UI ──────────────────────────────────────────────────
+  function updateDashboard(preview) {
+    preview = preview || {};
+    const d = {
+      protein:  totals.protein  + (preview.protein  || 0),
+      carbs:    totals.carbs    + (preview.carbs    || 0),
+      fats:     totals.fats     + (preview.fats     || 0),
+      calories: totals.calories + (preview.calories || 0),
     };
-    const vals = {
-      protein:  document.getElementById('val-protein'),
-      carbs:    document.getElementById('val-carbs'),
-      fats:     document.getElementById('val-fats'),
-      calories: document.getElementById('val-calories'),
-    };
-
-    const inputs = {
-      protein:  document.getElementById('input-protein'),
-      carbs:    document.getElementById('input-carbs'),
-      fats:     document.getElementById('input-fats'),
-      calories: document.getElementById('input-calories'),
-    };
-
-    function setRing(macro, value, target) {
-      const capped = Math.min(value, target);
-      const filled = (capped / target) * CIRC;
-      rings[macro].setAttribute('stroke-dasharray', `${filled.toFixed(2)} ${CIRC}`);
-    }
-
-    function getFormValues() {
-      const p = parseFloat(inputs.protein.value)  || 0;
-      const c = parseFloat(inputs.carbs.value)    || 0;
-      const f = parseFloat(inputs.fats.value)     || 0;
-      const calInput = parseFloat(inputs.calories.value);
-      const cal = isNaN(calInput) ? Math.round(p * 4 + c * 4 + f * 9) : calInput;
-      return { protein: p, carbs: c, fats: f, calories: cal };
-    }
-
-    function updateDashboard(preview) {
-      const display = {
-        protein:  totals.protein  + preview.protein,
-        carbs:    totals.carbs    + preview.carbs,
-        fats:     totals.fats     + preview.fats,
-        calories: totals.calories + preview.calories,
-      };
-
-      ['protein', 'carbs', 'fats'].forEach(m => {
-        setRing(m, display[m], TARGETS[m]);
-        vals[m].textContent = display[m] % 1 === 0 ? display[m] : display[m].toFixed(1);
-      });
-
-      vals.calories.textContent = display.calories.toLocaleString();
-    }
-
-    function onFormInput() {
-      updateDashboard(getFormValues());
-
-      const p = parseFloat(inputs.protein.value)  || 0;
-      const c = parseFloat(inputs.carbs.value)    || 0;
-      const f = parseFloat(inputs.fats.value)     || 0;
-      if (!inputs.calories.value) {
-        inputs.calories.setAttribute('placeholder', Math.round(p * 4 + c * 4 + f * 9) || 'auto');
-      }
-    }
-
-    [inputs.protein, inputs.carbs, inputs.fats, inputs.calories].forEach(el => {
-      el.addEventListener('input', onFormInput);
+    ['protein', 'carbs', 'fats'].forEach(m => {
+      setRing(m, d[m], TARGETS[m]);
+      vals[m].textContent = fmt(d[m]);
     });
+    vals.calories.textContent = d.calories.toLocaleString();
+  }
 
-    document.getElementById('meal-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const v = getFormValues();
+  // ── Water UI ──────────────────────────────────────────────────────
+  function updateWaterUI() {
+    const pct     = Math.min(waterMl / WATER_TARGET * 100, 100);
+    const glasses = Math.floor(waterMl / GLASS_ML);
+    document.getElementById('val-water').textContent          = waterMl.toLocaleString();
+    document.getElementById('water-bar-fill').style.width     = pct.toFixed(1) + '%';
+    document.getElementById('water-bar-pct').textContent      = Math.round(pct) + '%';
+    document.getElementById('water-glasses-display').textContent = glasses + ' / ' + (WATER_TARGET / GLASS_ML) + ' glasses';
+    document.getElementById('water-bar-track').setAttribute('aria-valuenow', waterMl);
+  }
 
-      if (v.protein === 0 && v.carbs === 0 && v.fats === 0 && v.calories === 0) return;
+  // ── History table ─────────────────────────────────────────────────
+  function addHistoryRow(meal) {
+    const tbody = document.getElementById('history-body');
+    const empty = document.getElementById('history-empty');
+    const row   = document.createElement('tr');
+    row.dataset.id = meal.id;
+    row.innerHTML = `
+      <td>${escHtml(meal.meal_name)}</td>
+      <td class="mono">${fmt(meal.protein_g)}</td>
+      <td class="mono">${fmt(meal.carbs_g)}</td>
+      <td class="mono">${fmt(meal.fats_g)}</td>
+      <td class="mono">${meal.calories_kcal}</td>
+      <td><button class="btn-delete-meal" title="Delete meal" aria-label="Delete ${escHtml(meal.meal_name)}">&#x2715;</button></td>
+    `;
+    row.querySelector('.btn-delete-meal').addEventListener('click', () => handleDeleteMeal(meal.id, row));
+    tbody.appendChild(row);
+    empty.style.display = 'none';
+  }
 
+  function clearHistory() {
+    document.getElementById('history-body').innerHTML = '';
+    document.getElementById('history-empty').style.display = '';
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Auth modal ────────────────────────────────────────────────────
+  function showAuthModal() {
+    document.getElementById('auth-overlay').hidden = false;
+  }
+
+  function hideAuthModal() {
+    document.getElementById('auth-overlay').hidden = true;
+  }
+
+  function setAuthError(msg) {
+    const el = document.getElementById('auth-error');
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function setAuthInfo(msg) {
+    const el = document.getElementById('auth-info');
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const isSignIn = mode === 'signin';
+    document.getElementById('tab-signin').classList.toggle('auth-tab--active',  isSignIn);
+    document.getElementById('tab-signup').classList.toggle('auth-tab--active', !isSignIn);
+    document.getElementById('auth-submit').textContent = isSignIn ? 'Sign In' : 'Create Account';
+    const switchText = document.querySelector('.auth-switch');
+    switchText.innerHTML = isSignIn
+      ? 'Don\'t have an account? <button class="auth-switch-btn" id="auth-switch-btn">Sign Up</button>'
+      : 'Already have an account? <button class="auth-switch-btn" id="auth-switch-btn">Sign In</button>';
+    document.getElementById('auth-switch-btn').addEventListener('click', () => setAuthMode(isSignIn ? 'signup' : 'signin'));
+    document.getElementById('auth-password').autocomplete = isSignIn ? 'current-password' : 'new-password';
+    setAuthError('');
+    setAuthInfo('');
+  }
+
+  // ── Nav ───────────────────────────────────────────────────────────
+  function showNavUser() {
+    const el = document.getElementById('nav-user');
+    el.hidden = false;
+    document.getElementById('nav-email').textContent = user ? user.email : '';
+  }
+
+  function hideNavUser() {
+    document.getElementById('nav-user').hidden = true;
+  }
+
+  // ── Reset everything ──────────────────────────────────────────────
+  function resetAll() {
+    totals  = { protein: 0, carbs: 0, fats: 0, calories: 0 };
+    waterMl = 0;
+    clearHistory();
+    updateDashboard();
+    updateWaterUI();
+  }
+
+  // ── Supabase: load today's data ───────────────────────────────────
+  async function loadTodayData() {
+    resetAll();
+    const { start, end } = todayRange();
+
+    const [mealRes, waterRes] = await Promise.all([
+      sb.from('meal_logs')
+        .select('id, meal_name, protein_g, carbs_g, fats_g, calories_kcal, logged_at')
+        .eq('user_id', user.id)
+        .gte('logged_at', start)
+        .lt('logged_at', end)
+        .order('logged_at', { ascending: true }),
+
+      sb.from('water_logs')
+        .select('amount_ml')
+        .eq('user_id', user.id)
+        .gte('logged_at', start)
+        .lt('logged_at', end),
+    ]);
+
+    if (mealRes.data) {
+      mealRes.data.forEach(meal => {
+        totals.protein  += meal.protein_g;
+        totals.carbs    += meal.carbs_g;
+        totals.fats     += meal.fats_g;
+        totals.calories += meal.calories_kcal;
+        addHistoryRow(meal);
+      });
+      updateDashboard();
+    }
+
+    if (waterRes.data) {
+      waterMl = waterRes.data.reduce((sum, r) => sum + r.amount_ml, 0);
+      waterMl = Math.min(waterMl, WATER_TARGET);
+      updateWaterUI();
+    }
+  }
+
+  // ── Supabase: insert meal ─────────────────────────────────────────
+  async function insertMeal(v, name) {
+    const { data, error } = await sb.from('meal_logs').insert({
+      user_id:       user.id,
+      meal_name:     name,
+      protein_g:     v.protein,
+      carbs_g:       v.carbs,
+      fats_g:        v.fats,
+      calories_kcal: v.calories,
+    }).select().single();
+
+    if (error) { console.error('Insert meal error:', error.message); return null; }
+    return data;
+  }
+
+  // ── Supabase: delete meal ─────────────────────────────────────────
+  async function deleteMealFromDb(id) {
+    const { error } = await sb.from('meal_logs').delete().eq('id', id).eq('user_id', user.id);
+    if (error) console.error('Delete meal error:', error.message);
+    return !error;
+  }
+
+  // ── Supabase: insert water ────────────────────────────────────────
+  async function insertWater(ml) {
+    const { error } = await sb.from('water_logs').insert({ user_id: user.id, amount_ml: ml });
+    if (error) console.error('Insert water error:', error.message);
+  }
+
+  // ── Supabase: reset water (delete today's logs) ───────────────────
+  async function resetWaterInDb() {
+    const { start, end } = todayRange();
+    const { error } = await sb.from('water_logs')
+      .delete()
+      .eq('user_id', user.id)
+      .gte('logged_at', start)
+      .lt('logged_at', end);
+    if (error) console.error('Reset water error:', error.message);
+  }
+
+  // ── Handlers ─────────────────────────────────────────────────────
+
+  async function handleDeleteMeal(id, row) {
+    const ok = await deleteMealFromDb(id);
+    if (!ok) return;
+
+    const p = parseFloat(row.cells[1].textContent) || 0;
+    const c = parseFloat(row.cells[2].textContent) || 0;
+    const f = parseFloat(row.cells[3].textContent) || 0;
+    const k = parseInt(row.cells[4].textContent)   || 0;
+    totals.protein  -= p;
+    totals.carbs    -= c;
+    totals.fats     -= f;
+    totals.calories -= k;
+    row.remove();
+    updateDashboard();
+    if (!document.getElementById('history-body').hasChildNodes()) {
+      document.getElementById('history-empty').style.display = '';
+    }
+  }
+
+  function getFormValues() {
+    const p = parseFloat(inputs.protein.value)  || 0;
+    const c = parseFloat(inputs.carbs.value)    || 0;
+    const f = parseFloat(inputs.fats.value)     || 0;
+    const calInput = parseFloat(inputs.calories.value);
+    const cal = isNaN(calInput) ? Math.round(p * 4 + c * 4 + f * 9) : calInput;
+    return { protein: p, carbs: c, fats: f, calories: cal };
+  }
+
+  function onFormInput() {
+    updateDashboard(getFormValues());
+    const p = parseFloat(inputs.protein.value)  || 0;
+    const c = parseFloat(inputs.carbs.value)    || 0;
+    const f = parseFloat(inputs.fats.value)     || 0;
+    if (!inputs.calories.value) {
+      inputs.calories.setAttribute('placeholder', Math.round(p * 4 + c * 4 + f * 9) || 'auto');
+    }
+  }
+
+  [inputs.protein, inputs.carbs, inputs.fats, inputs.calories].forEach(el => {
+    el.addEventListener('input', onFormInput);
+  });
+
+  document.getElementById('meal-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!user) return;
+    const v    = getFormValues();
+    if (v.protein === 0 && v.carbs === 0 && v.fats === 0 && v.calories === 0) return;
+
+    const name = document.getElementById('meal-name').value.trim() || 'Unnamed Meal';
+    const btn  = document.getElementById('meal-submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const saved = await insertMeal(v, name);
+    if (saved) {
       totals.protein  += v.protein;
       totals.carbs    += v.carbs;
       totals.fats     += v.fats;
       totals.calories += v.calories;
-
-      const name = document.getElementById('meal-name').value.trim() || 'Unnamed Meal';
-      const tbody = document.getElementById('history-body');
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${name}</td>
-        <td class="mono">${v.protein % 1 === 0 ? v.protein : v.protein.toFixed(1)}</td>
-        <td class="mono">${v.carbs   % 1 === 0 ? v.carbs   : v.carbs.toFixed(1)}</td>
-        <td class="mono">${v.fats    % 1 === 0 ? v.fats    : v.fats.toFixed(1)}</td>
-        <td class="mono">${v.calories}</td>
-      `;
-      tbody.appendChild(row);
-
-      document.getElementById('history-empty').style.display = 'none';
-
-      this.reset();
-      inputs.calories.setAttribute('placeholder', 'auto');
-      updateDashboard({ protein: 0, carbs: 0, fats: 0, calories: 0 });
-    });
-
-    const dateEl = document.getElementById('today-date');
-    dateEl.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    updateDashboard({ protein: 0, carbs: 0, fats: 0, calories: 0 });
-
-    // Water Tracker
-    const WATER_TARGET = 2500;
-    const GLASS_ML = 250;
-    let waterMl = 0;
-
-    function updateWater() {
-      const pct = Math.min(waterMl / WATER_TARGET * 100, 100);
-      const glasses = Math.floor(waterMl / GLASS_ML);
-      const maxGlasses = WATER_TARGET / GLASS_ML;
-
-      document.getElementById('val-water').textContent = waterMl.toLocaleString();
-      document.getElementById('water-bar-fill').style.width = pct.toFixed(1) + '%';
-      document.getElementById('water-bar-pct').textContent = Math.round(pct) + '%';
-      document.getElementById('water-glasses-display').textContent = glasses + ' / ' + maxGlasses + ' glasses';
-      const track = document.getElementById('water-bar-track');
-      track.setAttribute('aria-valuenow', waterMl);
+      addHistoryRow(saved);
+      updateDashboard();
     }
 
-    document.querySelectorAll('.water-btn[data-amount]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        waterMl = Math.min(waterMl + parseInt(btn.dataset.amount), WATER_TARGET);
-        updateWater();
-      });
-    });
+    this.reset();
+    inputs.calories.setAttribute('placeholder', 'auto');
+    btn.disabled = false;
+    btn.textContent = 'Log Completion';
+  });
 
-    document.getElementById('water-reset-btn').addEventListener('click', () => {
-      waterMl = 0;
-      updateWater();
+  // Water buttons
+  document.querySelectorAll('.water-btn[data-amount]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const amt = parseInt(btn.dataset.amount);
+      const newTotal = Math.min(waterMl + amt, WATER_TARGET);
+      const actual = newTotal - waterMl;
+      if (actual <= 0) return;
+      waterMl = newTotal;
+      updateWaterUI();
+      if (user) await insertWater(actual);
     });
+  });
 
-    const customRow = document.getElementById('water-custom-row');
-    document.getElementById('water-custom-btn').addEventListener('click', () => {
-      customRow.hidden = !customRow.hidden;
-      if (!customRow.hidden) document.getElementById('water-custom-input').focus();
-    });
+  document.getElementById('water-reset-btn').addEventListener('click', async () => {
+    waterMl = 0;
+    updateWaterUI();
+    if (user) await resetWaterInDb();
+  });
 
-    document.getElementById('water-custom-add').addEventListener('click', () => {
-      const v = parseInt(document.getElementById('water-custom-input').value) || 0;
-      if (v > 0) {
-        waterMl = Math.min(waterMl + v, WATER_TARGET);
-        updateWater();
-        document.getElementById('water-custom-input').value = '';
-        customRow.hidden = true;
+  const customRow = document.getElementById('water-custom-row');
+  document.getElementById('water-custom-btn').addEventListener('click', () => {
+    customRow.hidden = !customRow.hidden;
+    if (!customRow.hidden) document.getElementById('water-custom-input').focus();
+  });
+
+  document.getElementById('water-custom-add').addEventListener('click', async () => {
+    const v = parseInt(document.getElementById('water-custom-input').value) || 0;
+    if (v > 0) {
+      const actual = Math.min(v, WATER_TARGET - waterMl);
+      if (actual > 0) {
+        waterMl += actual;
+        updateWaterUI();
+        if (user) await insertWater(actual);
+      }
+      document.getElementById('water-custom-input').value = '';
+      customRow.hidden = true;
+    }
+  });
+
+  document.getElementById('water-custom-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('water-custom-add').click();
+  });
+
+  // Auth form
+  document.getElementById('auth-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email    = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const btn      = document.getElementById('auth-submit');
+
+    if (!email || !password) return;
+    setAuthError('');
+    setAuthInfo('');
+    btn.disabled = true;
+    btn.textContent = authMode === 'signin' ? 'Signing in…' : 'Creating account…';
+
+    if (authMode === 'signin') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        setAuthError(error.message);
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) {
+        setAuthError(error.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      } else if (data.session) {
+        // Email confirmation disabled — signed in immediately
+      } else {
+        setAuthInfo('Check your email to confirm your account, then sign in.');
+        setAuthMode('signin');
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    }
+  });
+
+  // Auth tab switchers
+  document.getElementById('tab-signin').addEventListener('click', () => setAuthMode('signin'));
+  document.getElementById('tab-signup').addEventListener('click', () => setAuthMode('signup'));
+  document.getElementById('auth-switch-btn').addEventListener('click', () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  });
+
+  // Sign out
+  document.getElementById('nav-signout').addEventListener('click', async () => {
+    await sb.auth.signOut();
+  });
+
+  // ── Date display ──────────────────────────────────────────────────
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────
+  async function initApp() {
+    if (!window.MACROLOG_CONFIG || !window.MACROLOG_CONFIG.supabaseUrl) {
+      console.error('MacroLog: config.js not loaded or Supabase URL missing.');
+      return;
+    }
+
+    sb = window.supabase.createClient(
+      window.MACROLOG_CONFIG.supabaseUrl,
+      window.MACROLOG_CONFIG.supabaseKey
+    );
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        user = session.user;
+        hideAuthModal();
+        showNavUser();
+        await loadTodayData();
+      } else if (event === 'SIGNED_OUT') {
+        user = null;
+        hideNavUser();
+        resetAll();
+        showAuthModal();
       }
     });
 
-    document.getElementById('water-custom-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('water-custom-add').click();
-    });
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      user = session.user;
+      hideAuthModal();
+      showNavUser();
+      await loadTodayData();
+    } else {
+      showAuthModal();
+    }
+
+    updateDashboard();
+    updateWaterUI();
+  }
+
+  initApp();
   </script>
   <script src="cookie-consent.js"></script>
 </body>
