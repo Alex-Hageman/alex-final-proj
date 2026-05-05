@@ -142,15 +142,18 @@ GROUP BY ml.user_id, ml.logged_date, wl.total_water_ml;
 -- ============================================================
 -- 6. ROW LEVEL SECURITY (RLS)
 --    Each user can only read and write their own rows.
---    This is enforced at the database level — not just the app.
+--    DROP ... IF EXISTS makes this script safely re-runnable.
 -- ============================================================
 
-ALTER TABLE public.profiles     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.macro_targets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meal_logs     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.water_logs    ENABLE ROW LEVEL SECURITY;
 
 -- Profiles
+DROP POLICY IF EXISTS "Users can view own profile"   ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
@@ -160,6 +163,11 @@ CREATE POLICY "Users can update own profile"
   USING (auth.uid() = id);
 
 -- Macro Targets
+DROP POLICY IF EXISTS "Users can view own targets"   ON public.macro_targets;
+DROP POLICY IF EXISTS "Users can insert own targets" ON public.macro_targets;
+DROP POLICY IF EXISTS "Users can update own targets" ON public.macro_targets;
+DROP POLICY IF EXISTS "Users can delete own targets" ON public.macro_targets;
+
 CREATE POLICY "Users can view own targets"
   ON public.macro_targets FOR SELECT
   USING (auth.uid() = user_id);
@@ -177,6 +185,11 @@ CREATE POLICY "Users can delete own targets"
   USING (auth.uid() = user_id);
 
 -- Meal Logs
+DROP POLICY IF EXISTS "Users can view own meals"   ON public.meal_logs;
+DROP POLICY IF EXISTS "Users can insert own meals" ON public.meal_logs;
+DROP POLICY IF EXISTS "Users can update own meals" ON public.meal_logs;
+DROP POLICY IF EXISTS "Users can delete own meals" ON public.meal_logs;
+
 CREATE POLICY "Users can view own meals"
   ON public.meal_logs FOR SELECT
   USING (auth.uid() = user_id);
@@ -194,6 +207,11 @@ CREATE POLICY "Users can delete own meals"
   USING (auth.uid() = user_id);
 
 -- Water Logs
+DROP POLICY IF EXISTS "Users can view own water logs"   ON public.water_logs;
+DROP POLICY IF EXISTS "Users can insert own water logs" ON public.water_logs;
+DROP POLICY IF EXISTS "Users can update own water logs" ON public.water_logs;
+DROP POLICY IF EXISTS "Users can delete own water logs" ON public.water_logs;
+
 CREATE POLICY "Users can view own water logs"
   ON public.water_logs FOR SELECT
   USING (auth.uid() = user_id);
