@@ -66,6 +66,7 @@
         Don't have an account?
         <button class="auth-switch-btn" id="auth-switch-btn">Sign Up</button>
       </p>
+      <button class="auth-guest-btn" id="auth-guest-btn">Continue as Guest &rarr;</button>
     </div>
   </div>
 
@@ -93,6 +94,11 @@
       <div class="hero-logo">
         <img src="images/logo.png" alt="MacroLog logo" class="hero-logo__img" />
         <p class="hero-credit">Created by UIOWA Student Alex Hageman</p>
+      </div>
+
+      <!-- Guest mode nudge -->
+      <div id="guest-banner" class="guest-banner" hidden>
+        Tracking locally &mdash; <button class="guest-banner__link" id="guest-signin-btn">Sign in to save your progress</button>
       </div>
       <h1 class="section-title">Today's Log</h1>
       <p class="section-date" id="today-date"></p>
@@ -321,7 +327,8 @@
     const tbody = document.getElementById('history-body');
     const empty = document.getElementById('history-empty');
     const row   = document.createElement('tr');
-    row.dataset.id = meal.id;
+    const rowId = meal.id || ('local-' + Date.now() + '-' + Math.random());
+    row.dataset.id = rowId;
     row.innerHTML = `
       <td>${escHtml(meal.meal_name)}</td>
       <td class="mono">${fmt(meal.protein_g)}</td>
@@ -330,7 +337,7 @@
       <td class="mono">${meal.calories_kcal}</td>
       <td><button class="btn-delete-meal" title="Delete meal" aria-label="Delete ${escHtml(meal.meal_name)}">&#x2715;</button></td>
     `;
-    row.querySelector('.btn-delete-meal').addEventListener('click', () => handleDeleteMeal(meal.id, row));
+    row.querySelector('.btn-delete-meal').addEventListener('click', () => handleDeleteMeal(rowId, row));
     tbody.appendChild(row);
     empty.style.display = 'none';
   }
@@ -346,6 +353,17 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  // ── Guest mode ────────────────────────────────────────────────────
+  function enterGuestMode() {
+    hideAuthModal();
+    document.getElementById('guest-banner').hidden = false;
+    document.getElementById('nav-user').hidden = true;
+  }
+
+  function exitGuestMode() {
+    document.getElementById('guest-banner').hidden = true;
   }
 
   // ── Auth modal ────────────────────────────────────────────────────
@@ -387,6 +405,7 @@
 
   // ── Nav ───────────────────────────────────────────────────────────
   function showNavUser() {
+    exitGuestMode();
     const el = document.getElementById('nav-user');
     el.hidden = false;
     document.getElementById('nav-email').textContent = user ? user.email : '';
@@ -485,13 +504,16 @@
   // ── Handlers ─────────────────────────────────────────────────────
 
   async function handleDeleteMeal(id, row) {
-    const ok = await deleteMealFromDb(id);
-    if (!ok) return;
-
     const p = parseFloat(row.cells[1].textContent) || 0;
     const c = parseFloat(row.cells[2].textContent) || 0;
     const f = parseFloat(row.cells[3].textContent) || 0;
     const k = parseInt(row.cells[4].textContent)   || 0;
+
+    // Only hit the DB for rows that were actually persisted (non-guest IDs)
+    if (user && !String(id).startsWith('local-')) {
+      await deleteMealFromDb(id);
+    }
+
     totals.protein  -= p;
     totals.carbs    -= c;
     totals.fats     -= f;
@@ -528,29 +550,52 @@
 
   document.getElementById('meal-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if (!user) return;
-    const v    = getFormValues();
+    const v = getFormValues();
     if (v.protein === 0 && v.carbs === 0 && v.fats === 0 && v.calories === 0) return;
 
     const name = document.getElementById('meal-name').value.trim() || 'Unnamed Meal';
     const btn  = document.getElementById('meal-submit');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
 
-    const saved = await insertMeal(v, name);
-    if (saved) {
-      totals.protein  += v.protein;
-      totals.carbs    += v.carbs;
-      totals.fats     += v.fats;
-      totals.calories += v.calories;
-      addHistoryRow(saved);
-      updateDashboard();
-    }
+    // Build a local meal object for immediate UI render
+    const localMeal = {
+      id:           null,  // will be replaced if DB save succeeds
+      meal_name:    name,
+      protein_g:    v.protein,
+      carbs_g:      v.carbs,
+      fats_g:       v.fats,
+      calories_kcal: v.calories,
+    };
+
+    // Update totals and UI immediately (optimistic)
+    totals.protein  += v.protein;
+    totals.carbs    += v.carbs;
+    totals.fats     += v.fats;
+    totals.calories += v.calories;
+    addHistoryRow(localMeal);
+    updateDashboard();
 
     this.reset();
     inputs.calories.setAttribute('placeholder', 'auto');
-    btn.disabled = false;
-    btn.textContent = 'Log Completion';
+
+    // Persist to Supabase in the background if signed in
+    if (user) {
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      const saved = await insertMeal(v, name);
+      // Update the row's dataset id so deletes work correctly
+      if (saved) {
+        const rows = document.getElementById('history-body').querySelectorAll('tr');
+        for (const r of rows) {
+          if (r.dataset.id && r.dataset.id.startsWith('local-')) {
+            r.dataset.id = saved.id;
+            r.querySelector('.btn-delete-meal').onclick = () => handleDeleteMeal(saved.id, r);
+            break;  // update the most-recently-added local row
+          }
+        }
+      }
+      btn.disabled = false;
+      btn.textContent = 'Log Completion';
+    }
   });
 
   // Water buttons
@@ -640,6 +685,13 @@
     setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
   });
 
+  // Guest mode
+  document.getElementById('auth-guest-btn').addEventListener('click', enterGuestMode);
+  document.getElementById('guest-signin-btn').addEventListener('click', () => {
+    showAuthModal();
+    setAuthMode('signin');
+  });
+
   // Sign out
   document.getElementById('nav-signout').addEventListener('click', async () => {
     await sb.auth.signOut();
@@ -684,6 +736,7 @@
       await loadTodayData();
     } else {
       showAuthModal();
+      // App still works — user can dismiss to guest mode
     }
 
     updateDashboard();
